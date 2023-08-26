@@ -103,7 +103,7 @@ int parse_http_request(char *raw_request, http_request *request) {
   char *header_str;
   request->num_headers = 0;
   while ((header_str = strtoke(NULL, "\r\n")) != NULL) {
-    header reqhdr;
+    http_header reqhdr;
     char *colon = strchr(header_str, ':');
     if (colon != NULL) {
       *colon = '\0';

@@ -199,6 +199,7 @@ int init_server(char *port) {
 
   printf("Established server on port %s...\n", port);
 
+  int pid;
   while (1) {  // main accept() loop
     sin_size = sizeof their_addr;
     new_fd = accept(sockfd, (struct sockaddr *)&their_addr, &sin_size);
@@ -211,6 +212,15 @@ int init_server(char *port) {
               s, sizeof s);
     printf("[SERVER] got connection from %s\n", s);
 
-    handle_request(new_fd);
+    // TODO: Probably horrible idea, but will do for now
+    // Either do proper multithreading or use select() syscall
+    pid = fork();
+    if (pid < 0) {
+      perror("ERROR in creating child process");
+      exit(1);
+    }
+    if (pid == 0) {
+      handle_request(new_fd);
+    }
   }
 }
