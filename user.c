@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "server.h"
 
@@ -10,6 +11,21 @@ bool is_positive_int(char *s) {
     if (!isdigit(s[i])) return false;
   }
   return true;
+}
+
+http_response hello(http_request req) {
+  if (strcmp(req.method, "GET") == 0) {
+    return text_response("Hello, world!\n");
+  } else if (strcmp(req.method, "POST") == 0) {
+    char *name = req.body;
+    char res[50];
+    snprintf(res, 50, "Hello, %s!\n", name);
+    return text_response(res);
+  }
+}
+
+http_response post(http_request req) {
+  return text_response("Hello, world!\n");
 }
 
 int main(int argc, char **argv) {
@@ -23,5 +39,10 @@ int main(int argc, char **argv) {
       exit(1);
     }
   }
-  init_server(PORT);
+
+  router r;
+  init_router(&r);
+  register_route(&r, "/hello", hello);
+
+  init_server(PORT, r);
 }

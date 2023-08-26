@@ -1,3 +1,5 @@
+#include "server.h"
+
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
@@ -108,25 +110,27 @@ int establish_listening_socket(char *PORT) {
 int send_http_response(int sd, http_response res) {
   char *response_raw = NULL;
 
-  char buffer[4096];
+  int BUF_SIZE = 4096;
+  char buffer[BUF_SIZE];
 
-  sprintf(buffer, "HTTP/1.1 %d %s\r\n", res.status_code,
-          get_phrase(res.status_code));
+  snprintf(buffer, BUF_SIZE, "HTTP/1.1 %d %s\r\n", res.status_code,
+           get_phrase(res.status_code));
   append_to_str(&response_raw, buffer);
 
   // Server defined headers
   // TODO: Give user option to override these, for now they're static
-  sprintf(buffer, "Server: %s\r\n", SERVER_NAME);
+  snprintf(buffer, BUF_SIZE, "Server: %s\r\n", SERVER_NAME);
   append_to_str(&response_raw, buffer);
 
-  sprintf(buffer, "Date: %s\r\n", get_current_time_str());
+  snprintf(buffer, BUF_SIZE, "Date: %s\r\n", get_current_time_str());
   append_to_str(&response_raw, buffer);
 
-  sprintf(buffer, "Content-Length: %d\r\n", strlen(res.body));
+  snprintf(buffer, BUF_SIZE, "Content-Length: %d\r\n", strlen(res.body));
   append_to_str(&response_raw, buffer);
 
   for (int i = 0; i < res.num_headers; i++) {
-    sprintf(buffer, "%s: %d\r\n", res.headers[i].name, res.headers[i].value);
+    snprintf(buffer, BUF_SIZE, "%s: %d\r\n", res.headers[i].name,
+             res.headers[i].value);
     append_to_str(&response_raw, buffer);
   }
 
@@ -136,17 +140,17 @@ int send_http_response(int sd, http_response res) {
   return send(sd, response_raw, strlen(response_raw), 0);
 }
 
-void text_response(http_request req, char *s) {
+http_response text_response(char *s) {
   http_response res;
   res.body = s;
   res.num_headers = 0;
   res.status_code = 200;
 
-  send_http_response(req.sd, res);
+  return res;
 }
 
 // client connection
-void handle_request(int sd) {
+void handle_request(int sd, router rtr) {
   int rcvd, fd, bytes_read;
   buf = malloc(65535);
   rcvd = recv(sd, buf, 65535, 0);
@@ -173,10 +177,19 @@ void handle_request(int sd) {
     // Poorman router for now, will implement router struct later with route
     // registration
 
-    if (strcmp(req->path, "/html") == 0) {
-      // file_response("test.html");
-    } else if (strcmp(req->path, "/hello") == 0) {
-      text_response(*req, "Hello, World!");
+    bool resolved = false;
+    for (int i = 0; i < rtr.num_routes; i++) {
+      if (strcmp(req->path, rtr.routes[i].path) == 0) {
+        send_http_response(sd, rtr.routes[i].handler(*req));
+        resolved = true;
+        break;
+      }
+    }
+    if (!resolved) {
+      http_response not_found_res;
+      not_found_res.status_code = 404;
+      not_found_res.num_headers = 0;
+      send_http_response(sd, not_found_res);
     }
 
     free(req);
@@ -189,7 +202,8 @@ void handle_request(int sd) {
   close(sd);
 }
 
-int init_server(char *port) {
+// TODO: support multiple routers
+int init_server(char *port, router r) {
   int sockfd = establish_listening_socket(port);
   int new_fd;
   char s[INET6_ADDRSTRLEN];
@@ -220,7 +234,19 @@ int init_server(char *port) {
       exit(1);
     }
     if (pid == 0) {
-      handle_request(new_fd);
+      handle_request(new_fd, r);
     }
   }
+}
+
+int init_router(router *r) {
+  r->num_routes = 0;
+  return 0;
+}
+
+void register_route(router *r, char *path,
+                    http_response (*handler)(http_request req)) {
+  r->routes[r->num_routes].path = path;
+  r->routes[r->num_routes].handler = handler;
+  r->num_routes++;
 }
