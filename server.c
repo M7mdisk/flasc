@@ -132,7 +132,6 @@ int send_http_response(int sd, http_response res) {
 
   append_to_str(&response_raw, "\r\n");
   append_to_str(&response_raw, res.body);
-  printf("\n---\n%s\n---\n", response_raw);
 
   return send(sd, response_raw, strlen(response_raw), 0);
 }
@@ -140,6 +139,7 @@ int send_http_response(int sd, http_response res) {
 void text_response(http_request req, char *s) {
   http_response res;
   res.body = s;
+  res.num_headers = 0;
   res.status_code = 200;
 
   send_http_response(req.sd, res);
@@ -169,8 +169,6 @@ void handle_request(int sd) {
       return;
     }
 
-    printf("The req is a %s, req body is %s\n", req->method, req->body);
-
     // Route request
     // Poorman router for now, will implement router struct later with route
     // registration
@@ -178,7 +176,6 @@ void handle_request(int sd) {
     if (strcmp(req->path, "/html") == 0) {
       // file_response("test.html");
     } else if (strcmp(req->path, "/hello") == 0) {
-      printf("Doing hello world!\n");
       text_response(*req, "Hello, World!");
     }
 
@@ -192,23 +189,15 @@ void handle_request(int sd) {
   close(sd);
 }
 
-int main(int argc, char **argv) {
-  char *PORT = "8080";
-
-  if (argc > 1) {
-    if (is_positive_int(argv[1])) {
-      PORT = argv[1];
-    } else {
-      fprintf(stderr, "Invalid port number. Usage: %s [PORT]\n", argv[0]);
-      exit(INVALID_PORT);
-    }
-  }
-  int sockfd = establish_listening_socket(PORT);
+int init_server(char *port) {
+  int sockfd = establish_listening_socket(port);
   int new_fd;
   char s[INET6_ADDRSTRLEN];
 
   socklen_t sin_size;
   struct sockaddr_storage their_addr;  // connector's address information
+
+  printf("Established server on port %s...\n", port);
 
   while (1) {  // main accept() loop
     sin_size = sizeof their_addr;
@@ -220,10 +209,8 @@ int main(int argc, char **argv) {
 
     inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr),
               s, sizeof s);
-    printf("server: got connection from %s\n", s);
+    printf("[SERVER] got connection from %s\n", s);
 
     handle_request(new_fd);
   }
-
-  printf("Attempting to Establish server on port %s...\n", PORT);
 }

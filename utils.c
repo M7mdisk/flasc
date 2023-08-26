@@ -13,13 +13,6 @@ char *get_current_time_str() {
   return formatted_date;
 }
 
-bool is_positive_int(char *s) {
-  for (int i = 0; s[i] != '\0'; i++) {
-    if (!isdigit(s[i])) return false;
-  }
-  return true;
-}
-
 // Deal with memorry allocation stuff
 void append_to_str(char **str, const char *append) {
   size_t currentLen = *str ? strlen(*str) : 0;
