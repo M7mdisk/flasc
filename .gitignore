@@ -2,3 +2,4 @@
 *.out
 flasc.o
 flasc
+examples/*/main

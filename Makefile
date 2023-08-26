@@ -1,5 +1,8 @@
 CC=gcc
 CFLAGS=-Wall
+DIRS = $(wildcard examples/*/)
+
+.PHONY: all
 
 all: flasc
 
@@ -16,4 +19,12 @@ build: server.c flasc.c
 	rm flasco.o server.o
 
 clean:
-	rm *.o flasc
+	rm -f *.o flasc *.out
+	@for dir in $(DIRS); do \
+        rm -f $${dir}main;\
+    done
+
+examples: build
+	@for dir in $(DIRS); do \
+		$(CC) -I. $${dir}main.c flasc.o -o $${dir}main; \
+    done
