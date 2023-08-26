@@ -3,3 +3,4 @@
 flasc.o
 flasc
 examples/*/main
+user.c
