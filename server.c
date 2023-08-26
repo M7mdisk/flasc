@@ -43,13 +43,10 @@ void sigchld_handler(int s) {
 }
 
 int establish_listening_socket(char *PORT) {
-  int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
+  int sockfd;  // listen on sock_fd, new connection on new_fd
   struct addrinfo hints, *servinfo, *p;
-  struct sockaddr_storage their_addr;  // connector's address information
-  socklen_t sin_size;
   struct sigaction sa;
   int yes = 1;
-  char s[INET6_ADDRSTRLEN];
 
   memset(&hints, 0, sizeof hints);  // Empty struct
   hints.ai_family = AF_UNSPEC;      // Use IPv4 or IPv6, doesn't matter
@@ -125,11 +122,11 @@ int send_http_response(int sd, http_response res) {
   snprintf(buffer, BUF_SIZE, "Date: %s\r\n", get_current_time_str());
   append_to_str(&response_raw, buffer);
 
-  snprintf(buffer, BUF_SIZE, "Content-Length: %d\r\n", strlen(res.body));
+  snprintf(buffer, BUF_SIZE, "Content-Length: %ld\r\n", strlen(res.body));
   append_to_str(&response_raw, buffer);
 
   for (int i = 0; i < res.num_headers; i++) {
-    snprintf(buffer, BUF_SIZE, "%s: %d\r\n", res.headers[i].name,
+    snprintf(buffer, BUF_SIZE, "%s: %s\r\n", res.headers[i].name,
              res.headers[i].value);
     append_to_str(&response_raw, buffer);
   }
@@ -149,13 +146,66 @@ http_response text_response(char *s) {
   return res;
 }
 
+http_response err_500(char *error) {
+  http_response res;
+  res.body = error;
+  res.num_headers = 0;
+  res.status_code = 500;
+
+  return res;
+}
+
+http_response file_response(char *file_name) {
+  http_response res;
+  FILE *file = fopen(file_name, "rb");  // Open the file in binary mode
+
+  if (file == NULL) {
+    perror("Error opening the file");
+    return err_500("Could not read file");
+  }
+
+  // Determine the file size
+  fseek(file, 0, SEEK_END);
+  long file_size = ftell(file);
+  fseek(file, 0, SEEK_SET);
+
+  // Allocate memory for the buffer
+  char *buffer = (char *)malloc(file_size + 1);  // +1 for the null terminator
+
+  if (buffer == NULL) {
+    perror("Memory allocation error");
+    return err_500("Could not malloc buffer");
+  }
+
+  // Read the entire file into the buffer
+  size_t read_size = fread(buffer, 1, file_size, file);
+
+  if (read_size != file_size) {
+    perror("Error reading the file");
+    return err_500("Could not read file");
+    free(buffer);
+  }
+
+  buffer[file_size] = '\0';  // Null-terminate the buffer
+
+  // Close the file
+  fclose(file);
+
+  res.body = buffer;
+  res.num_headers = 0;
+  res.status_code = 200;
+
+  set_res_header(&res, "Last-Modified", get_last_modified_date(file_name));
+
+  return res;
+}
+
 // client connection
 void handle_request(int sd, router rtr) {
-  int rcvd, fd, bytes_read;
+  int rcvd;
   buf = malloc(65535);
   rcvd = recv(sd, buf, 65535, 0);
 
-  char *method, uri, prot;
   if (rcvd < 0)  // receive error
     fprintf(stderr, ("recv() error\n"));
   else if (rcvd == 0)  // receive socket closed

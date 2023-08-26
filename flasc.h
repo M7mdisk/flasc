@@ -20,8 +20,8 @@ int parse_http_request(char* raw_request, http_request* request);
 // TODO: I don't think this is needed but keep for now
 void free_http_request(http_request request);
 
-char* get_header(http_request req, char* header_name);
-void set_header(http_request* req, char* header_name, char* value);
+char* get_req_header(http_request req, char* header_name);
+void set_req_header(http_request* req, char* header_name, char* value);
 
 typedef struct http_response {
   int status_code;
@@ -34,6 +34,8 @@ struct http_code_pair {
   int code;
   char* phrase;
 };
+
+void set_res_header(http_response* res, char* header_name, char* value);
 
 char* get_phrase(int code);
 extern struct http_code_pair http_pairs[];

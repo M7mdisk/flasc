@@ -3,6 +3,7 @@
 #include "flasc.h"
 
 http_response text_response(char* s);
+http_response file_response(char* file_name);
 
 /* IDEA: Add middleware support (something ran before actual handler)
 http_res (*middleware)(http_req req, http_res(*next)(http_req req));

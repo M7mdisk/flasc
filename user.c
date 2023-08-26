@@ -22,10 +22,11 @@ http_response hello(http_request req) {
     snprintf(res, 50, "Hello, %s!\n", name);
     return text_response(res);
   }
+  return text_response("Try using GET or POST\n");
 }
 
-http_response post(http_request req) {
-  return text_response("Hello, world!\n");
+http_response file_example(http_request req) {
+  return file_response("examples/index.html");
 }
 
 int main(int argc, char **argv) {
@@ -43,6 +44,7 @@ int main(int argc, char **argv) {
   router r;
   init_router(&r);
   register_route(&r, "/hello", hello);
+  register_route(&r, "/index", file_example);
 
   init_server(PORT, r);
 }

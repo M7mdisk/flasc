@@ -89,11 +89,9 @@ char *strtoke(char *str, const char *delim) {
 // TODO: Error handeling
 int parse_http_request(char *raw_request, http_request *request) {
   request->body = "This is a test";
-  char *method, *uri, *prot, *qs, *payload;
-  int payload_size;
+  char *method, *uri;
   method = strtoke(raw_request, " ");
   uri = strtoke(NULL, " ");
-  prot = strtoke(NULL, "\r\n");
   strtoke(NULL, "\r\n");
 
   request->method = method;
@@ -131,7 +129,20 @@ char *get_header(http_request req, char *header_name) {
   return NULL;
 }
 
-void set_header(http_request *req, char *header_name, char *value) {
+void set_res_header(http_response *res, char *header_name, char *value) {
+  for (int i = 0; i < res->num_headers; i++) {
+    if (strcmp(res->headers[i].name, header_name) == 0) {
+      res->headers[i].value = value;
+      return;
+    }
+  }
+  // Header not added yet, create a new one.
+  res->headers[res->num_headers].name = header_name;
+  res->headers[res->num_headers].value = value;
+  res->num_headers++;
+}
+
+void set_req_header(http_request *req, char *header_name, char *value) {
   for (int i = 0; i < req->num_headers; i++) {
     if (strcmp(req->headers[i].name, header_name) == 0) {
       req->headers[i].value = value;
