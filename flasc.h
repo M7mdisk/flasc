@@ -1,19 +1,25 @@
 #ifndef FLASC_H
 #define FLASC_H
 #define MAX_HEADERS 100
+#define MAX_PARAMS 100
 #define MAX_ROUTES 100
 
-typedef struct header {
+typedef struct Pair {
   char* name;
   char* value;
-} header;
+} Pair;
+
+typedef Pair header;
+typedef Pair query_param;
 
 typedef struct http_request {
   int sd;
   char *method, *path;
   char* body;
   header headers[MAX_HEADERS];
+  query_param params[MAX_PARAMS];
   int num_headers;
+  int num_params;
 } http_request;
 
 int parse_http_request(char* raw_request, http_request* request);

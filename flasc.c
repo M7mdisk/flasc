@@ -88,8 +88,7 @@ char *strtoke(char *str, const char *delim) {
 // TODO: If host only sends \n, disgard the \r but still accept the request
 // TODO: Error handeling
 int parse_http_request(char *raw_request, http_request *request) {
-  request->body = "This is a test";
-  char *method, *uri;
+  char *method, *uri, *path, *query, *param;
   method = strtoke(raw_request, " ");
   uri = strtoke(NULL, " ");
   strtoke(NULL, "\r\n");
@@ -115,6 +114,25 @@ int parse_http_request(char *raw_request, http_request *request) {
       strtoke(NULL, "\r\n");
       request->body = strtoke(NULL, "\r\n");
       break;
+    }
+  }
+
+  // Parse URI into path and query params
+  path = strtok(uri, "?");
+  request->path = path;
+
+  request->num_params = 0;
+  query = strtok(NULL, "?");
+  if (query != NULL) {
+    query_param q;
+    char *a, *b;
+    param = strtok_r(query, "&", &a);
+    while (param != NULL) {
+      q.name = strtok_r(param, "=", &b);
+      q.value = strtok_r(NULL, "=", &b);
+      param = strtok_r(NULL, "&", &a);
+      request->params[request->num_params] = q;
+      request->num_params++;
     }
   }
   return 0;
