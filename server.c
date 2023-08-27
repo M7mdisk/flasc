@@ -19,7 +19,7 @@
 #define BACKLOG 10
 #define SERVER_NAME "Flasc 0.0.1"
 
-typedef enum Error { INVALID_PORT = 1 } Error;
+typedef enum Error { INVALID_PORT = 1, DUPLICATE_PATH } Error;
 static char *buf;
 
 // From Beej's guide to networking
@@ -137,6 +137,15 @@ int send_http_response(int sd, http_response res) {
   return send(sd, response_raw, strlen(response_raw), 0);
 }
 
+http_response response(int status_code, char *body) {
+  http_response res;
+  res.body = body;
+  res.num_headers = 0;
+  res.status_code = status_code;
+
+  return res;
+}
+
 http_response text_response(char *s) {
   http_response res;
   res.body = s;
@@ -160,6 +169,8 @@ http_response file_response(char *file_name) {
   FILE *file = fopen(file_name, "rb");  // Open the file in binary mode
 
   if (file == NULL) {
+    if (errno == ENOENT) return response(404, "File not found.");
+
     perror("Error opening the file");
     return err_500("Could not read file");
   }
@@ -195,9 +206,68 @@ http_response file_response(char *file_name) {
   res.num_headers = 0;
   res.status_code = 200;
 
-  set_res_header(&res, "Last-Modified", get_last_modified_date(file_name));
+  char *last_modified = get_last_modified_date(file_name);
+  if (last_modified != NULL)
+    set_res_header(&res, "Last-Modified", last_modified);
 
   return res;
+}
+
+bool matchPattern(const char *pattern, const char *text) {
+  int patternLen = strlen(pattern);
+  int textLen = strlen(text);
+  int patternIndex = 0;
+  int textIndex = 0;
+
+  while (patternIndex < patternLen && textIndex < textLen) {
+    if (pattern[patternIndex] == ':') {
+      // Found a placeholder in the pattern
+      patternIndex++;  // Skip the ':'
+      while (pattern[patternIndex] != '/' && pattern[patternIndex] != '\0') {
+        if (pattern[patternIndex] != text[textIndex]) {
+          return false;  // Mismatch in placeholder
+        }
+        patternIndex++;
+        textIndex++;
+      }
+    } else {
+      // Regular character comparison
+      if (pattern[patternIndex] != text[textIndex]) {
+        return false;  // Mismatch in regular characters
+      }
+      patternIndex++;
+      textIndex++;
+    }
+  }
+
+  // Check if both strings reached the end
+  if (patternIndex == patternLen && textIndex == textLen) {
+    return true;  // Matched completely
+  }
+
+  return false;  // One of the strings is not fully matched
+}
+
+bool resolve_route(http_request req, router rtr) {
+  bool resolved = false;
+  for (int i = 0; i < rtr.num_routes; i++) {
+    if (rtr.routes[i].type == HANDLER_ROUTE &&
+        strcmp(req.path, rtr.routes[i].path) == 0) {
+      send_http_response(req.sd, rtr.routes[i].handler(req));
+      resolved = true;
+      break;
+    }
+    if (rtr.routes[i].type == STATIC_DIR &&
+        strncmp(req.path, rtr.routes[i].path, strlen(rtr.routes[i].path)) ==
+            0) {
+      // f
+      char *strt = req.path + strlen(rtr.routes[i].path);
+      char *res = strdup(rtr.routes[i].base_dir);
+      strcat(res, strt);
+      send_http_response(req.sd, file_response(res));
+    }
+  }
+  return resolved;
 }
 
 // client connection
@@ -223,18 +293,8 @@ void handle_request(int sd, router rtr) {
       return;
     }
 
-    // Route request
-    // Poorman router for now, will implement router struct later with route
-    // registration
+    bool resolved = resolve_route(*req, rtr);
 
-    bool resolved = false;
-    for (int i = 0; i < rtr.num_routes; i++) {
-      if (strcmp(req->path, rtr.routes[i].path) == 0) {
-        send_http_response(sd, rtr.routes[i].handler(*req));
-        resolved = true;
-        break;
-      }
-    }
     if (!resolved) {
       http_response not_found_res;
       not_found_res.status_code = 404;
@@ -294,9 +354,34 @@ int init_router(router *r) {
   return 0;
 }
 
+bool used_path(router *r, char *path) {
+  for (int i = 0; i < r->num_routes; i++) {
+    if (strcmp(r->routes[i].path, path) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void register_route(router *r, char *path,
                     http_response (*handler)(http_request req)) {
-  r->routes[r->num_routes].path = path;
+  if (used_path(r, path)) {
+    fprintf(stderr, "[ERROR] Duplicate path (%s) detected\n", path);
+    exit(DUPLICATE_PATH);
+  }
+  r->routes[r->num_routes].type = HANDLER_ROUTE;
   r->routes[r->num_routes].handler = handler;
+  r->routes[r->num_routes].path = path;
+  r->num_routes++;
+}
+
+void register_static_dir(router *r, char *path, char *base_dir) {
+  if (used_path(r, path)) {
+    fprintf(stderr, "[ERROR] Duplicate path (%s) detected\n", path);
+    exit(DUPLICATE_PATH);
+  }
+  r->routes[r->num_routes].type = STATIC_DIR;
+  r->routes[r->num_routes].path = path;
+  r->routes[r->num_routes].base_dir = base_dir;
   r->num_routes++;
 }

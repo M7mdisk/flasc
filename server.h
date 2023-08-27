@@ -5,6 +5,8 @@
 http_response text_response(char* s);
 http_response file_response(char* file_name);
 
+typedef enum RouteType { HANDLER_ROUTE, STATIC_DIR } RouteType;
+
 /* IDEA: Add middleware support (something ran before actual handler)
 http_res (*middleware)(http_req req, http_res(*next)(http_req req));
 */
@@ -14,6 +16,8 @@ typedef struct router {
   struct {
     char* path;
     http_response (*handler)(http_request req);
+    RouteType type;
+    char* base_dir;  // This is only filled when type is STATIC_DIR.
     // TODO: Routes should not have limit, dynamic allowcation and keep counter
     // instead
   } routes[MAX_ROUTES];
@@ -25,4 +29,5 @@ int init_router(router* r);
 void register_route(router* r, char* path,
                     http_response (*handler)(http_request req));
 
+void register_static_dir(router* r, char* path, char* base_dir);
 #endif
