@@ -1,49 +1,33 @@
-#ifndef FLASC_H
-#define FLASC_H
-#define MAX_HEADERS 100
-#define MAX_PARAMS 100
-#define MAX_ROUTES 100
+#ifndef SERVER_H
+#define SERVER_H
+#include "core.h"
 
-typedef struct Pair {
-  char* name;
-  char* value;
-} Pair;
+http_response text_response(char* s);
+http_response file_response(char* file_name);
 
-typedef Pair header;
-typedef Pair query_param;
+typedef enum RouteType { HANDLER_ROUTE, STATIC_DIR } RouteType;
 
-typedef struct http_request {
-  int sd;
-  char *method, *path;
-  char* body;
-  header headers[MAX_HEADERS];
-  query_param params[MAX_PARAMS];
-  int num_headers;
-  int num_params;
-} http_request;
+/* IDEA: Add middleware support (something ran before actual handler)
+http_res (*middleware)(http_req req, http_res(*next)(http_req req));
+*/
+// IDEA: Error handler function
+// http_response (*error_handler)(http_request req, int error_code);
+typedef struct router {
+  struct {
+    char* path;
+    http_response (*handler)(http_request req);
+    RouteType type;
+    char* base_dir;  // This is only filled when type is STATIC_DIR.
+    // TODO: Routes should not have limit, dynamic allowcation and keep counter
+    // instead
+  } routes[MAX_ROUTES];
+  int num_routes;
+} router;
 
-int parse_http_request(char* raw_request, http_request* request);
-// TODO: I don't think this is needed but keep for now
-void free_http_request(http_request request);
+int init_server(char* port, router r);
+int init_router(router* r);
+void register_route(router* r, char* path,
+                    http_response (*handler)(http_request req));
 
-char* get_req_header(http_request req, char* header_name);
-void set_req_header(http_request* req, char* header_name, char* value);
-
-typedef struct http_response {
-  int status_code;
-  char* body;
-  header headers[MAX_HEADERS];
-  int num_headers;
-} http_response;
-
-struct http_code_pair {
-  int code;
-  char* phrase;
-};
-
-void set_res_header(http_response* res, char* header_name, char* value);
-
-char* get_phrase(int code);
-extern struct http_code_pair http_pairs[];
-
+void register_static_dir(router* r, char* path, char* base_dir);
 #endif

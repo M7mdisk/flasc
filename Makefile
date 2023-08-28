@@ -6,15 +6,15 @@ DIRS = $(wildcard examples/*/)
 
 all: flasc
 
-flasc: user.c server.c flasc.c utils.c
-	$(CC) $(CFLAGS) user.c server.c flasc.c -o flasc
+flasc: user.c flasc.c core.c utils.c
+	$(CC) $(CFLAGS) user.c flasc.c core.c -o flasc
 
-debug: user.c server.c flasc.c utils.c
-	$(CC) $(CFLAGS) -g user.c server.c flasc.c -o flasc
+debug: user.c flasc.c core.c utils.c
+	$(CC) $(CFLAGS) -g user.c flasc.c core.c -o flasc
 
-build: server.c flasc.c utils.c
-	$(CC) -O -c server.c -o server.o
-	$(CC) -O -c flasc.c -o flasco.o
+build: flasc.c core.c utils.c
+	$(CC) -O -c flasc.c -o server.o
+	$(CC) -O -c core.c -o flasco.o
 	ld -r server.o flasco.o -o flasc.o
 	rm flasco.o server.o
 

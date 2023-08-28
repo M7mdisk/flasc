@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "server.h"
+#include "flasc.h"
 
 bool is_positive_int(char *s) {
   for (int i = 0; s[i] != '\0'; i++) {
