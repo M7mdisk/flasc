@@ -1,9 +1,9 @@
+#include "core.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "core.h"
 struct http_code_pair http_pairs[] = {{100, "Continue"},
                                       {101, "Switching protocols"},
                                       {102, "Processing"},
@@ -94,7 +94,6 @@ int parse_http_request(char *raw_request, http_request *request) {
   strtoke(NULL, "\r\n");
 
   request->method = method;
-  // TODO: QUERY PARAMS
   request->path = uri;
 
   char *header_str;

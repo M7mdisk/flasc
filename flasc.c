@@ -334,7 +334,6 @@ int init_server(char *port, router r) {
 
     inet_ntop(their_addr.ss_family, get_in_addr((struct sockaddr *)&their_addr),
               s, sizeof s);
-    printf("[SERVER] got connection from %s\n", s);
 
     // TODO: Probably horrible idea, but will do for now
     // Either do proper multithreading or use select() syscall

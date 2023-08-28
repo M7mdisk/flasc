@@ -23,8 +23,6 @@ typedef struct http_request {
 } http_request;
 
 int parse_http_request(char* raw_request, http_request* request);
-// TODO: I don't think this is needed but keep for now
-void free_http_request(http_request request);
 
 char* get_req_header(http_request req, char* header_name);
 void set_req_header(http_request* req, char* header_name, char* value);
